@@ -1,0 +1,86 @@
+# Tri segmenta (AO-6). Adrese su fiksne; DNS zapisi u terraform/dns moraju se poklapati.
+networks:
+  web:
+    ipam:
+      config:
+        - subnet: 10.40.0.0/29
+          gateway: 10.40.0.1
+  app:
+    ipam:
+      config:
+        - subnet: 10.40.0.8/29
+          gateway: 10.40.0.9
+  db:
+    internal: true # bez izlaza prema vani
+    ipam:
+      config:
+        - subnet: 10.40.0.16/29
+          gateway: 10.40.0.17
+
+services:
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports: ["80:80"] # jedini objavljen port aplikacije (AO-6)
+    dns: [10.40.0.12] # imena proj.lab razrješava BIND
+    networks:
+      web: { ipv4_address: 10.40.0.2 }
+      app: { ipv4_address: 10.40.0.10 }
+    depends_on:
+      backend: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: backend
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD}
+    dns: [10.40.0.12]
+    networks:
+      app: { ipv4_address: 10.40.0.11 }
+      db: { ipv4_address: 10.40.0.18 }
+    depends_on:
+      db: { condition: service_healthy }
+      dns: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      retries: 10
+
+  db:
+    image: postgres:16-alpine
+    container_name: db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_DB: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data # AO-10
+    networks:
+      db: { ipv4_address: 10.40.0.19 }
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "app", "-d", "app"]
+      interval: 5s
+      retries: 10
+
+  dns:
+    image: internetsystemsconsortium/bind9:9.20
+    container_name: dns
+    # Objavljen samo na upravljačkoj adresi VM-a: Terraform i dig s hosta moraju doći do njega.
+    ports:
+      - "${VM_MGMT_IP}:53:53/udp"
+      - "${VM_MGMT_IP}:53:53/tcp"
+    volumes:
+      - ./dns:/etc/bind # named.conf, keys.conf i zona (piše Ansible rola dns)
+    networks:
+      app: { ipv4_address: 10.40.0.12 }
+    healthcheck:
+      test: ["CMD", "dig", "@127.0.0.1", "proj.lab", "SOA", "+short"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:
