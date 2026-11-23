@@ -1,0 +1,12 @@
+# Most options below are nightly-only; lua/plugins/conform.lua runs rustfmt
+# with `+nightly` when that toolchain is installed, and falls back to stable
+# (which ignores the unstable options with a warning) when it is not.
+max_width = 120
+brace_style = "AlwaysNextLine"
+control_brace_style = "AlwaysNextLine"
+tab_spaces = 8
+fn_params_layout = "Vertical"
+struct_lit_single_line = false
+indent_style = "Block"
+fn_call_width = 120
+wrap_comments = true

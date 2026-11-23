@@ -1,0 +1,7 @@
+*.tfstate*
+.terraform/
+.secrets/
+inventory.ini
+backups/
+.env
+target/
