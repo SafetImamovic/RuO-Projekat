@@ -1,0 +1,14 @@
+- name: izvorni kod frontenda i backenda
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../app/{{ item }}/"
+    dest: "{{ project_dir }}/{{ item }}/"
+    mode: preserve
+  loop: [frontend, backend]
+
+- name: aplikacija je izgrađena i radi (čeka healthcheck svih servisa)
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_dir }}"
+    build: always
+    state: present
+    wait: true
+    wait_timeout: 600

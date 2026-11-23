@@ -1,0 +1,43 @@
+- name: direktorij BIND-a (bind čita i piše zonu i žurnal)
+  ansible.builtin.file:
+    path: "{{ project_dir }}/dns"
+    state: directory
+    owner: "{{ dns_uid }}"
+    group: "{{ dns_uid }}"
+    mode: "0750"
+
+- name: named.conf
+  ansible.builtin.template:
+    src: named.conf.j2
+    dest: "{{ project_dir }}/dns/named.conf"
+    owner: "{{ dns_uid }}"
+    group: "{{ dns_uid }}"
+    mode: "0640"
+  notify: restart dns
+
+- name: keys.conf (TSIG ključ)
+  ansible.builtin.template:
+    src: keys.conf.j2
+    dest: "{{ project_dir }}/dns/keys.conf"
+    owner: "{{ dns_uid }}"
+    group: "{{ dns_uid }}"
+    mode: "0640"
+  no_log: true
+  notify: restart dns
+
+# Zona je dinamička: nakon prve izmjene BIND vodi žurnal (.jnl), pa se datoteka ne smije prepisivati.
+- name: početna zona (samo ako ne postoji)
+  ansible.builtin.template:
+    src: zone.j2
+    dest: "{{ project_dir }}/dns/{{ zone }}.zone"
+    owner: "{{ dns_uid }}"
+    group: "{{ dns_uid }}"
+    mode: "0644"
+    force: false
+
+- name: BIND radi i zdrav je
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_dir }}"
+    services: [dns]
+    state: present
+    wait: true

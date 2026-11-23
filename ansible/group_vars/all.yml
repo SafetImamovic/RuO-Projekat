@@ -1,0 +1,8 @@
+# Vrijednosti okruženja (DO-7). Konstante uloga su u roles/*/defaults.
+project_dir: /opt/proj
+zone: proj.lab
+
+# Tajne se generišu pri prvom pokretanju i spremaju u .secrets/ (nije u Gitu, AO-9).
+# Isti fajl za TSIG čita Makefile za Terraform (terraform/dns).
+db_password: "{{ lookup('password', playbook_dir ~ '/../.secrets/db_password chars=ascii_letters,digits length=24') }}"
+tsig_secret: "{{ lookup('password', playbook_dir ~ '/../.secrets/tsig_secret chars=ascii_letters,digits length=32') }}"

@@ -1,0 +1,4 @@
+dns_uid: 53                   # korisnik bind unutar slike internetsystemsconsortium/bind9
+dns_ttl: 300
+dns_ns_address: 10.40.0.12    # mora odgovarati compose.yaml
+tsig_key_name: tsig-proj

@@ -1,0 +1,5 @@
+; Početno stanje dinamičke zone. Zapise web/app/db/www dodaje Terraform (terraform/dns) kroz RFC 2136.
+$TTL {{ dns_ttl }}
+@    IN SOA ns1.{{ zone }}. hostmaster.{{ zone }}. ( 1 3600 600 1209600 {{ dns_ttl }} )
+@    IN NS  ns1.{{ zone }}.
+ns1  IN A   {{ dns_ns_address }}

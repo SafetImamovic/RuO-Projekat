@@ -1,0 +1,18 @@
+include "/etc/bind/keys.conf";
+
+options {
+  directory "/var/cache/bind";
+  listen-on { any; };
+  listen-on-v6 { none; };
+  recursion no;               // samo autoritativni odgovori
+  allow-query { any; };
+  allow-transfer { none; };   // nema sekundarnog servera
+  dnssec-validation no;
+};
+
+zone "{{ zone }}" {
+  type primary;
+  file "/etc/bind/{{ zone }}.zone";
+  // TSIG ključ smije mijenjati samo ovu zonu i samo zapise A i CNAME (AO-8)
+  update-policy { grant {{ tsig_key_name }} zonesub A CNAME; };
+};

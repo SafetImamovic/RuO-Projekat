@@ -96,7 +96,7 @@ resource "libvirt_domain" "vm" {
 resource "local_file" "inventory" {
   filename = "${path.module}/inventory.ini"
   content  = <<-EOT
-    [proj]
+    [servers]
     ${var.vm_name} ansible_host=${libvirt_domain.vm.network_interface[0].addresses[0]} ansible_user=${var.admin_user}
   EOT
 }
