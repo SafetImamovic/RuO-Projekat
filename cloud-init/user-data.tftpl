@@ -1,0 +1,12 @@
+#cloud-config
+# Bootstrap (AO-4): korisnik za upravljanje sa SSH ključem, prijava lozinkom onemogućena.
+hostname: ${hostname}
+ssh_pwauth: false
+users:
+  - name: ${admin_user}
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${ssh_key}
