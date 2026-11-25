@@ -1,14 +1,19 @@
+# rsync umjesto copy: copy šalje datoteku po datoteku, što je sporo; target/ (lokalni cargo build) se preskače.
 - name: izvorni kod frontenda i backenda
-  ansible.builtin.copy:
+  ansible.posix.synchronize:
     src: "{{ playbook_dir }}/../app/{{ item }}/"
     dest: "{{ project_dir }}/{{ item }}/"
-    mode: preserve
+    delete: true
+    rsync_opts: ["--exclude=target/"]
   loop: [frontend, backend]
+  register: izvor
 
+# Slike se ponovo grade samo kad je stigao novi kod; inače 'policy' gradi samo ako slika ne postoji.
+# Tako drugo izvršavanje playbooka daje changed=0 (AO-5).
 - name: aplikacija je izgrađena i radi (čeka healthcheck svih servisa)
   community.docker.docker_compose_v2:
     project_src: "{{ project_dir }}"
-    build: always
+    build: "{{ 'always' if izvor is changed else 'policy' }}"
     state: present
     wait: true
     wait_timeout: 600

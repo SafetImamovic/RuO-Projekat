@@ -1,6 +1,6 @@
 - name: Docker Engine, Compose i Python biblioteka za Ansible module
   ansible.builtin.apt:
-    name: [docker.io, docker-compose, python3-docker]
+    name: [docker.io, docker-compose, python3-docker, rsync]
     state: present
     cache_valid_time: 3600
 
