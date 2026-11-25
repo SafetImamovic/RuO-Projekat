@@ -118,29 +118,108 @@ U Gitu nema `*.tfstate`, `.terraform/`, `.env`, `inventory.ini` ni `.secrets/`. 
 
 ---
 
-## Pokretanje od praznog računara
+## Pokretanje od nule
 
-### Preduvjeti
+Kratko: `./setup.sh` (jednom) → `make check` → `make all` → `make destroy`. Detaljni koraci su ispod.
 
-- Ubuntu/Debian ili WSL2 s uključenom ugniježđenom virtualizacijom (mora postojati `/dev/kvm`). Za WSL2 u `%UserProfile%\.wslconfig` dodajte `[wsl2]` i `nestedVirtualization=true`.
-- Pristup internetu (Debian cloud slika, Docker slike, Rust crate-ovi).
+### 0. Preduvjeti
 
-### 1. Alati (jednom)
+- Ubuntu/Debian ili Windows sa WSL2 (Ubuntu), virtualizacija uključena u BIOS-u/UEFI-ju.
+- Najmanje 4 GiB slobodnog RAM-a (VM dobija 2 GiB) i nekoliko GiB diska (disk VM-a je copy-on-write, raste do najviše 20 GiB).
+- Pristup internetu: Debian cloud slika, Docker slike i Rust crate-ovi se skidaju pri prvom podizanju.
+
+**Samo za WSL2:** VM traži ugniježđenu virtualizaciju. U Windowsu napravite ili dopunite `%UserProfile%\.wslconfig`:
+
+```ini
+[wsl2]
+nestedVirtualization=true
+```
+
+zatim u PowerShellu pokrenite `wsl --shutdown` i ponovo otvorite Ubuntu. Provjera: `ls -l /dev/kvm` mora pokazati uređaj.
+
+### 1. Alati (jednom po računaru)
 
 ```bash
 git clone <URL repozitorija> projekat && cd projekat
-./setup.sh            # make, ansible, dig/nsupdate, KVM/libvirt, Docker, Terraform, SSH ključ
-# odjava i ponovna prijava (WSL: `wsl --shutdown` u PowerShellu) da grupe libvirt/docker počnu važiti
+./setup.sh
+```
+
+`setup.sh` (ne pokreće se kao root; sam traži `sudo`) instalira `make`, Ansible, `dig`/`nsupdate`, QEMU/KVM, libvirt, Docker i Terraform. Uz to podiže libvirt pool i mrežu `default`, pravi SSH ključ `~/.ssh/id_ed25519` (ako ga nema) i dodaje korisnika u grupe `libvirt` i `docker`. Skripta je idempotentna, pa je sigurno pokrenuti je ponovo.
+
+Grupe počnu važiti tek nakon nove prijave: odjavite se i prijavite ponovo (na WSL2 `wsl --shutdown` u PowerShellu). Zatim:
+
+```bash
+groups                # mora sadržavati libvirt i docker
 make check            # svi alati i /dev/kvm moraju biti [ OK ]
 ```
 
-### 2. Podizanje, test, uklanjanje
+### 2. Podizanje
 
 ```bash
 make all              # infra → config → dns → deploy → test
-make test             # izolacija, dig, aplikacija, tajne, trajnost podataka
-make destroy          # uklanja VM, diskove, cloud-init ISO i lokalni DNS state
 ```
+
+| Korak | Šta se dešava |
+|---|---|
+| `infra` | Terraform skida Debian sliku, pravi disk, cloud-init ISO i VM, i piše `inventory.ini` |
+| `config` | Ansible čeka SSH i cloud-init, instalira Docker, generiše tajne u `.secrets/` (samo prvi put) i podiže BIND |
+| `dns` | Terraform upisuje `web`, `app`, `db` i `www` u zonu `proj.lab` |
+| `deploy` | Ansible prenosi kod, gradi slike (prvi put kompajlira Rust, nekoliko minuta) i čeka healthcheck svih servisa |
+| `test` | svi testovi moraju biti `[ OK ]` |
+
+Prvo podizanje je najsporije zbog skidanja slika i kompajliranja Rusta. Svaki korak ispisuje živi prozor napretka, a puni izlaz ide u `.logs/`. `V=1 make all` ispisuje cijeli izlaz direktno.
+
+### 3. Korištenje
+
+```bash
+terraform -chdir=terraform/vm output -raw ip   # adresa VM-a
+make tunnel                                    # http://localhost:8080 (radi i iz Windows preglednika)
+make ps                                        # kontejneri na VM-i
+ssh admin@$(terraform -chdir=terraform/vm output -raw ip)   # prijava samo ključem
+```
+
+### 4. Uklanjanje
+
+```bash
+make destroy
+```
+
+Terraform uklanja VM, njen disk, baznu Debian sliku, cloud-init ISO i `inventory.ini`. Zajedno s VM-om nestaju i svi kontejneri, volumen baze i DNS zona. Makefile zatim briše lokalni state `terraform/dns`, jer zapisi više ne postoje.
+
+Provjera da ništa nije ostalo:
+
+```bash
+virsh -c qemu:///system list --all          # nema domene "proj"
+virsh -c qemu:///system vol-list default    # nema proj.qcow2, proj-init.iso ni debian-13-genericcloud.qcow2
+```
+
+Šta namjerno ostaje:
+
+| Ostaje | Zašto | Potpuno brisanje |
+|---|---|---|
+| `.secrets/` | tajne se ponovo koriste pri sljedećem `make all` | `rm -rf .secrets` (**samo nakon** `make destroy`, inače baza ostaje sa starom lozinkom) |
+| `terraform/*/.terraform/` | keš providera, ubrzava `init` | `rm -rf terraform/*/.terraform` |
+| `.logs/`, `backups/` | logovi i backupi baze | `rm -rf .logs backups` |
+| alati iz `setup.sh`, SSH ključ | dijele se s drugim projektima | ručno, ako je potrebno |
+
+### 5. Tok odbrane
+
+```bash
+make destroy          # prazan sistem
+make all              # od nule do aplikacije koja radi, s testovima
+make test             # ponovo, samostalno
+make all              # drugo izvršavanje: Terraform "No changes", Ansible changed=0
+make drift            # izmjena DNS zapisa mimo koda, plan je vidi, apply je vraća
+```
+
+### Česti problemi
+
+| Simptom | Uzrok i rješenje |
+|---|---|
+| `make check`: `/dev/kvm` FAIL | nije uključena (ugniježđena) virtualizacija; vidi korak 0 |
+| `permission denied` na libvirt ili Docker socketu | grupe još ne važe; nova prijava ili `wsl --shutdown` |
+| `make dns` ne može doći do servera | BIND ne radi jer `make config` nije prošao; pokrenite ga prvo |
+| `make deploy` istekne čekajući healthcheck | `make ps` i `.logs/` pokazuju koji servis nije zdrav |
 
 | Cilj                                       | Šta radi                                                                             |
 | ------------------------------------------ | ------------------------------------------------------------------------------------ |
