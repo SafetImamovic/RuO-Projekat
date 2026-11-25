@@ -97,10 +97,10 @@ resource "local_file" "inventory" {
   filename = "${path.module}/inventory.ini"
   content  = <<-EOT
     [servers]
-    ${var.vm_name} ansible_host=${libvirt_domain.vm.network_interface[0].addresses[0]} ansible_user=${var.admin_user}
+    ${var.vm_name} ansible_host=${try(libvirt_domain.vm.network_interface[0].addresses[0], "")} ansible_user=${var.admin_user}
   EOT
 }
 
 output "ip" {
-  value = libvirt_domain.vm.network_interface[0].addresses[0]
+  value = try(libvirt_domain.vm.network_interface[0].addresses[0], "")
 }
