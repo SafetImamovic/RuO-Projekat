@@ -1,4 +1,8 @@
-# Tri segmenta (AO-6). Adrese su fiksne; DNS zapisi u terraform/dns moraju se poklapati.
+# Tri segmenta (AO-6). Jedini izvor plana adresiranja (DO-3): terraform/dns i Ansible rola dns
+# čitaju adrese kontejnera iz ovog fajla, nigdje se ne prepisuju.
+
+# Adresa BIND-a: koristi je kontejner dns i resolver frontenda i backenda (YAML anker, jedno mjesto).
+x-dns-ip: &dns_ip 10.40.0.12
 networks:
   web:
     ipam:
@@ -22,7 +26,7 @@ services:
     build: ./frontend
     container_name: frontend
     ports: ["80:80"] # jedini objavljen port aplikacije (AO-6)
-    dns: [10.40.0.12] # imena proj.lab razrješava BIND
+    dns: [*dns_ip] # imena proj.lab razrješava BIND (adresa resolvera mora biti IP)
     networks:
       web: { ipv4_address: 10.40.0.2 }
       app: { ipv4_address: 10.40.0.10 }
@@ -38,7 +42,7 @@ services:
     container_name: backend
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
-    dns: [10.40.0.12]
+    dns: [*dns_ip]
     networks:
       app: { ipv4_address: 10.40.0.11 }
       db: { ipv4_address: 10.40.0.18 }
@@ -76,7 +80,7 @@ services:
     volumes:
       - ./dns:/etc/bind # named.conf, keys.conf i zona (piše Ansible rola dns)
     networks:
-      app: { ipv4_address: 10.40.0.12 }
+      app: { ipv4_address: *dns_ip }
     healthcheck:
       test: ["CMD", "dig", "@127.0.0.1", "proj.lab", "SOA", "+short"]
       interval: 5s
