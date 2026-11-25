@@ -19,7 +19,8 @@ TSIG    = $$(cat .secrets/tsig_secret)
 # VM se pri svakom podizanju kreira od nule s novim host ključem, često na istoj adresi.
 # Ključ se zato ne pamti u ~/.ssh/known_hosts (inače "REMOTE HOST IDENTIFICATION HAS CHANGED").
 SSH    := ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR
-# lokalni port za make tunnel (make tunnel PORT=8081)
+# lokalni port za make tunnel: prvi slobodan od 8080 (npr. kad drugi klon već drži 8080),
+# ili tačno zadani (make tunnel PORT=9000)
 PORT   ?= 8080
 
 help: ## lista ciljeva
@@ -55,9 +56,11 @@ endpoints: ## nginx lokacije i kamo ih prosljeđuje (iz pokrenutog kontejnera)
 	      t=$$2; sub(/;$$/,"",t); if ($$1=="root") t=t loc; \
 	      printf "  %-32s -> %-36s %s\n", base loc "*", t "*", ($$1=="root" ? "statički fajlovi" : "proxy"); loc="" }'
 
-tunnel: ## SSH tunel: aplikacija na http://localhost:8080 (i iz Windows preglednika; PORT=...)
-	@ip=$(IP); printf "  http://localhost:$(PORT) -> $$ip:80  (Ctrl+C za kraj)\n"; \
-	  $(SSH) -N -o ExitOnForwardFailure=yes -L $(PORT):localhost:80 admin@$$ip
+tunnel: ## SSH tunel: aplikacija na http://localhost:8080 ili prvom slobodnom (i iz Windows preglednika; PORT=...)
+	@ip=$(IP); p=$(PORT); \
+	  if [ "$(origin PORT)" = file ]; then while ss -Hltn "sport = :$$p" | grep -q .; do p=$$((p + 1)); done; fi; \
+	  printf "  http://localhost:$$p -> $$ip:80  (Ctrl+C za kraj)\n"; \
+	  $(SSH) -N -o ExitOnForwardFailure=yes -L $$p:localhost:80 admin@$$ip
 
 ssh: ## prijava na VM (korisnik admin, samo ključem)
 	@$(SSH) admin@$(IP)
