@@ -263,6 +263,7 @@ Aplikacija je dostupna na `http://<VM_IP>/` (`terraform -chdir=terraform/vm outp
 - **Parametar VM-a:** promijenite `default` varijable (npr. `memory`) u `terraform/vm/main.tf` i pokrenite `make infra`. Jednokratni `-var` na komandnoj liniji bi sljedeći `make infra` vratio na staro.
 - **Novi DNS zapis:** dodajte resurs u `terraform/dns/main.tf` (npr. još jedan `dns_cname_record`) i pokrenite `make dns`.
 - **Adresa kontejnera:** promijenite je samo u `app/compose.yaml`, pa pokrenite `make config dns deploy`.
+- **Druga instanca na istom hostu** (npr. drugi klon): imena u libvirtu (VM, diskovi, ISO, bazna slika) se izvode iz `vm_name`, pa u drugom klonu prije `make all` postavite drugo ime: `echo 'vm_name = "proj2"' > terraform/vm/terraform.tfvars`.
 
 ---
 

@@ -46,8 +46,10 @@ variable "ssh_public_key_path" {
   default = "~/.ssh/id_ed25519.pub"
 }
 
+# Sva imena u libvirtu (zajednička za cijeli host) izvode se iz vm_name,
+# pa se dvije instance s različitim vm_name ne sudaraju.
 resource "libvirt_volume" "base" {
-  name   = "debian-13-genericcloud.qcow2"
+  name   = "${var.vm_name}-base.qcow2"
   pool   = "default"
   format = "qcow2"
   source = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
