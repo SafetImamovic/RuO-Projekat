@@ -140,7 +140,7 @@ zatim u PowerShellu pokrenite `wsl --shutdown` i ponovo otvorite Ubuntu. Provjer
 ### 1. Alati (jednom po računaru)
 
 ```bash
-git clone <URL repozitorija> projekat && cd projekat
+git clone https://github.com/SafetImamovic/RuO-Projekat projekat && cd projekat
 ./setup.sh
 ```
 
