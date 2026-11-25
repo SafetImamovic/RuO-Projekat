@@ -10,7 +10,7 @@ ifneq ($(shell test -t 1 && echo y),)
 endif
 STEP = @printf '\n$(B)==> %s$(N)\n' "$(1)"
 
-.PHONY: help check infra config dns deploy ps endpoints tunnel ssh test drift backup all destroy clean
+.PHONY: help check infra config dns deploy ps endpoints tunnel ssh test drift backup all destroy clean pdf
 
 TF_VM  := terraform -chdir=terraform/vm
 TF_DNS := terraform -chdir=terraform/dns
@@ -28,7 +28,7 @@ help: ## lista ciljeva
 
 check: ## provjera alata i /dev/kvm
 	$(call STEP,provjera okruženja)
-	@for t in terraform ansible-playbook docker dig virsh nsupdate; do \
+	@for t in terraform ansible-playbook docker dig virsh nsupdate rsync curl nc; do \
 	  if command -v $$t >/dev/null; then printf "  [$(G) OK $(N)] %-18s $(D)%s$(N)\n" $$t "$$(command -v $$t)"; \
 	  else printf "  [$(R)FAIL$(N)] %-18s nije instaliran (./setup.sh)\n" $$t; fi; done
 	@if test -e /dev/kvm; then printf "  [$(G) OK $(N)] %-18s\n" /dev/kvm; else printf "  [$(R)FAIL$(N)] %-18s\n" /dev/kvm; fi
@@ -83,6 +83,12 @@ all: infra config dns deploy test ## cijelo okruženje od nule
 destroy: ## uklanja VM i lokalno stanje DNS-a
 	@scripts/step.sh "uklanjanje VM-a" $(TF_VM) destroy -auto-approve -input=false
 	rm -f terraform/dns/terraform.tfstate*
+
+# PDF predaje iz docs/dizajnerske-odluke.md (pandoc + typst, nisu dio setup.sh).
+# Fontovi se zadaju izričito: pandoc 3.7 bez njih šalje typstu praznu listu fontova.
+pdf: ## PDF s DO i ADR-ovima (docs/dizajnerske-odluke.pdf)
+	pandoc docs/dizajnerske-odluke.md -o docs/dizajnerske-odluke.pdf --pdf-engine=typst \
+	  -V papersize=a4 -V mainfont="Libertinus Serif" -V codefont="DejaVu Sans Mono" --toc --toc-depth=1
 
 # Briše sve što .gitignore ignoriše (git clean -X), osim .notes/ i backups/ (lični podaci).
 # Odbija ako Terraform još vodi VM: brisanje state-a bi ostavilo VM bez upravljanja,

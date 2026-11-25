@@ -1,16 +1,17 @@
 ---
 title: "Troslojna aplikacija kao kod"
 subtitle: "Dizajnerske odluke (DO) i ADR-ovi"
-author: "IME PREZIME"
+author: "Safet Imamović"
 date: "25.11.2026."
 lang: bs
 ---
 
-| | |
-|---|---|
-| **Predmet** | Računarstvo u oblaku, II ciklus, III semestar, 2026/27 |
-| **Student** | IME PREZIME |
-| **Repozitorij** | URL REPOZITORIJA |
+**Predmet:** Računarstvo u oblaku\
+**Studij:** II ciklus studija, III semestar, akademska godina 2026/27\
+**Nastavnik:** V. prof. dr. Đulaga Hadžić\
+**Asistent:** ass. Mr. Adin Jahić\
+**Student:** Safet Imamović\
+**Repozitorij:** <https://github.com/SafetImamovic/RuO-Projekat>
 
 # Opis aplikacije i arhitekture
 
@@ -24,27 +25,12 @@ Uz njih radi **BIND**, autoritativni DNS server za zonu projekta `proj.lab`.
 
 **Arhitektura.** Terraform kreira jednu VM (Debian 13, KVM/libvirt), a cloud-init radi njenu početnu konfiguraciju. Ansible zatim instalira Docker, podiže BIND i aplikaciju. Slojevi su u tri Docker mreže s fiksnim podmrežama (web, app, db), a svaki kontejner je samo na mrežama koje mu trebaju. DNS zapise servisa vodi drugi Terraform projekat kroz RFC 2136 i TSIG. Tok zahtjeva je isključivo frontend → backend → baza.
 
-```
- Host (Ubuntu/WSL2): make → terraform/vm, ansible, terraform/dns
-        │ libvirt          │ SSH               │ RFC 2136 + TSIG (:53)
-        ▼                  ▼                   ▼
- ┌─ VM "proj" (Debian 13), VM_MGMT_IP na 192.168.122.0/24 ──────────┐
- │                                                                  │
- │  web 10.40.0.0/29     app 10.40.0.8/29       db 10.40.0.16/29    │
- │  ┌───────────────┐    ┌──────────────────┐   ┌────────────────┐  │
- │  │ frontend .2   │    │ backend .11      │   │ PostgreSQL .19 │  │
- │  │ (nginx) :80 ◄─┼─ korisnik            │   │ bez porta      │  │
- │  │       .10 ────┼───►  :8080 ── .18 ───┼──►│ volume pgdata  │  │
- │  └───────────────┘    │ BIND .12 :53     │   └────────────────┘  │
- │                       └──────────────────┘    internal: true     │
- │  frontend → baza: nema mrežnog puta (frontend nije na mreži db)  │
- └──────────────────────────────────────────────────────────────────┘
-```
+Dijagram stvarnog rasporeda (host, VM, tri segmenta i tok zahtjeva) nalazi se u README-u repozitorija: <https://github.com/SafetImamovic/RuO-Projekat#arhitektura-stvarni-raspored>.
 
 # Pregled dizajnerskih odluka
 
 | DO | Pitanje | Izabrana opcija |
-|---|---|---|
+|:----|:-------------------|:----------------------------------|
 | DO-1 | Aplikacija i tehnologije | Vlastita aplikacija: nginx + HTML, Rust (`tiny_http`, `postgres`), PostgreSQL 16 |
 | DO-2 | Broj VM-ova i raspored | Opcija A: jedna VM; segmenti su Docker mreže; BIND na istoj VM-i |
 | DO-3 | Plan adresiranja | Tri /29 podmreže iz 10.40.0.0/27, statične adrese kontejnera s jednim izvorom (`compose.yaml`); VM preko DHCP-a |
@@ -114,7 +100,7 @@ Svaki segment treba vlastitu podmrežu (AO-6). Komponente se obraćaju jedna dru
 Opcija 3. Plan je sljedeći.
 
 | Segment | Podmreža | Gateway | Adrese |
-|---|---|---|---|
+|:--------|:----------|:------|:---------------------------|
 | web | 10.40.0.0/29 | .1 | frontend .2 |
 | app | 10.40.0.8/29 | .9 | frontend .10, backend .11, BIND .12 |
 | db | 10.40.0.16/29 | .17 | backend .18, PostgreSQL .19 |
@@ -239,7 +225,7 @@ Opcija 2, zona `proj.lab`, TTL 300.
 - TTL 300 je kompromis: izmjena se brzo vidi, a resolveri ipak keširaju.
 - Bez PTR zapisa i sekundarnog servera: komponente ne traže obrnutu rezoluciju, a sekundarni server bi na istoj VM-i bio samo prividna redundantnost.
 - `proj.lab` je kratko i čitljivo, a server je autoritativan i ne delegira se iz javnog DNS-a, pa se ime razrješava samo kad se upit šalje direktno ovom serveru. `home.arpa` ili `.internal` bi bili formalno rezervisani za privatnu upotrebu.
-- Gubi se: jedan BIND je jedna tačka otkaza. nginx razrješava `app.proj.lab` samo pri pokretanju, pa nakon promjene adrese backenda treba restartovati frontend (`docker restart frontend`), inače nginx i dalje šalje zahtjeve na staru adresu.
+- Gubi se: jedan BIND je jedna tačka otkaza. nginx ime backenda drži u varijabli uz `resolver ... valid=30s`, pa promjenu adrese backenda prati bez restarta, ali s kašnjenjem do 30 sekundi.
 
 # DO-9: Upravljanje tajnama
 

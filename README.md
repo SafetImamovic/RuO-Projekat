@@ -135,6 +135,7 @@ make drift            # izmjena DNS zapisa mimo koda, plan je vidi, apply je vra
 | `make all`                                 | `infra config dns deploy test`                                                       |
 | `make destroy`                             | uklanjanje svega što je projekat kreirao                                             |
 | `make clean`                               | repozitorij kao svjež klon: briše sve ignorisano (osim `.notes/`, `backups/`); odbija dok VM postoji |
+| `make pdf`                                 | PDF predaje (`docs/dizajnerske-odluke.pdf`) iz `docs/dizajnerske-odluke.md`; treba `pandoc` i `typst` |
 | `make ps`, `make endpoints`, `make tunnel` | pomoćni: kontejneri, nginx rute, SSH tunel na `localhost:8080` ili prvi slobodan port |
 
 Bez Makefilea su to iste naredbe, ovim redom:
@@ -148,7 +149,7 @@ terraform -chdir=terraform/dns init && terraform -chdir=terraform/dns apply
 VM_IP=$TF_VAR_dns_server bash tests/test.sh
 ```
 
-Redoslijed je bitan: BIND mora raditi (`config`) prije nego što Terraform upiše zapise (`dns`), a zapisi moraju postojati prije aplikacije (`deploy`), jer nginx pri pokretanju razrješava `app.proj.lab`.
+Redoslijed je bitan: BIND mora raditi (`config`) prije nego što Terraform upiše zapise (`dns`), a zapisi moraju postojati prije aplikacije (`deploy`), jer se backend pri pokretanju spaja na `db.proj.lab` i bez tog zapisa nikad ne postane zdrav.
 
 Aplikacija je dostupna na `http://<VM_IP>/` (`terraform -chdir=terraform/vm output -raw ip`). Iz Windows preglednika pokrenite `make tunnel` i otvorite adresu koju ispiše (`http://localhost:8080`, ili sljedeći slobodan port ako je 8080 zauzet; tačan port: `make tunnel PORT=9000`).
 
@@ -395,6 +396,7 @@ ansible/          site.yml, group_vars/, role docker · dns · app (AO-5, AO-7)
 tests/            test.sh (izolacija, dig, aplikacija, tajne, AO-10), drift.sh
 scripts/step.sh   prikaz napretka za Makefile; puni izlaz ide u .logs/
 setup.sh          instalacija alata na praznom računaru
+docs/             dizajnerske-odluke.md: izvor PDF-a s DO-1 do DO-9 i ADR-ovima
 Makefile
 ```
 

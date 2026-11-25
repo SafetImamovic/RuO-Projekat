@@ -17,7 +17,14 @@ provider "libvirt" {
 
 variable "vm_name" {
   type    = string
-  default = "proj"
+  default = "proj-original"
+
+  # vm_name je i hostname VM-a (cloud-init). Hostname smije imati samo mala slova, cifre i crticu
+  # (RFC 1123); s "_" cloud-init ne postavi hostname i završi kao "degraded" (rc=2).
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{0,62}$", var.vm_name)) && !endswith(var.vm_name, "-")
+    error_message = "vm_name mora biti ispravan hostname: mala slova, cifre i crtica (npr. proj-original), bez donje crte."
+  }
 }
 
 variable "memory" {

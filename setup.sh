@@ -7,10 +7,10 @@ set -euo pipefail
 command -v apt-get >/dev/null || { echo "Potreban je apt (Ubuntu/Debian)."; exit 1; }
 sudo -v
 
-echo "== paketi: make, ansible, dig, KVM/libvirt, Docker"
+echo "== paketi: make, ansible, dig, rsync/curl/nc (Ansible i testovi), KVM/libvirt, Docker"
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  make ansible bind9-dnsutils wget gpg lsb-release \
+  make ansible bind9-dnsutils wget gpg lsb-release rsync curl netcat-openbsd \
   qemu-system-x86 libvirt-daemon-system libvirt-clients genisoimage \
   docker.io docker-compose-v2
 
