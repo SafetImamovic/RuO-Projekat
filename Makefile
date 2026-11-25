@@ -10,12 +10,15 @@ ifneq ($(shell test -t 1 && echo y),)
 endif
 STEP = @printf '\n$(B)==> %s$(N)\n' "$(1)"
 
-.PHONY: help check infra config dns deploy ps endpoints tunnel test drift backup all destroy clean
+.PHONY: help check infra config dns deploy ps endpoints tunnel ssh test drift backup all destroy clean
 
 TF_VM  := terraform -chdir=terraform/vm
 TF_DNS := terraform -chdir=terraform/dns
 IP      = $$($(TF_VM) output -raw ip)
 TSIG    = $$(cat .secrets/tsig_secret)
+# VM se pri svakom podizanju kreira od nule s novim host ključem, često na istoj adresi.
+# Ključ se zato ne pamti u ~/.ssh/known_hosts (inače "REMOTE HOST IDENTIFICATION HAS CHANGED").
+SSH    := ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR
 # lokalni port za make tunnel (make tunnel PORT=8081)
 PORT   ?= 8080
 
@@ -44,17 +47,20 @@ deploy: ## Ansible: izgradnja i pokretanje aplikacije
 	@scripts/step.sh "Ansible: build Rust + pokretanje aplikacije" bash -c 'cd ansible && ansible-playbook site.yml --tags deploy'
 
 ps: ## kontejneri u VM-u (docker na hostu ih ne vidi)
-	@ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR admin@$(IP) "sudo docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Networks}}'"
+	@$(SSH) admin@$(IP) "sudo docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Networks}}'"
 
 endpoints: ## nginx lokacije i kamo ih prosljeđuje (iz pokrenutog kontejnera)
-	@ip=$(IP); ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR admin@$$ip "sudo docker exec frontend nginx -T 2>/dev/null" \
+	@ip=$(IP); $(SSH) admin@$$ip "sudo docker exec frontend nginx -T 2>/dev/null" \
 	  | awk -v base="http://$$ip" '$$1=="location"{loc=$$2} loc && ($$1=="proxy_pass" || $$1=="root"){ \
 	      t=$$2; sub(/;$$/,"",t); if ($$1=="root") t=t loc; \
 	      printf "  %-32s -> %-36s %s\n", base loc "*", t "*", ($$1=="root" ? "statički fajlovi" : "proxy"); loc="" }'
 
 tunnel: ## SSH tunel: aplikacija na http://localhost:8080 (i iz Windows preglednika; PORT=...)
 	@ip=$(IP); printf "  http://localhost:$(PORT) -> $$ip:80  (Ctrl+C za kraj)\n"; \
-	  ssh -N -o StrictHostKeyChecking=no -o LogLevel=ERROR -o ExitOnForwardFailure=yes -L $(PORT):localhost:80 admin@$$ip
+	  $(SSH) -N -o ExitOnForwardFailure=yes -L $(PORT):localhost:80 admin@$$ip
+
+ssh: ## prijava na VM (korisnik admin, samo ključem)
+	@$(SSH) admin@$(IP)
 
 test: ## izolacija, DNS, aplikacija, tajne
 	$(call STEP,testovi)
@@ -67,7 +73,7 @@ drift: ## demonstracija drifta: nsupdate mimo koda, plan, apply
 backup: ## pg_dump u backups/ (nije dio AO)
 	$(call STEP,backup baze)
 	mkdir -p backups
-	ssh -o StrictHostKeyChecking=no admin@$(IP) "sudo docker exec db pg_dump -U app app" | gzip > backups/$$(date +%F-%H%M).sql.gz
+	$(SSH) admin@$(IP) "sudo docker exec db pg_dump -U app app" | gzip > backups/$$(date +%F-%H%M).sql.gz
 
 all: infra config dns deploy test ## cijelo okruženje od nule
 

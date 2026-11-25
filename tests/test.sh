@@ -4,7 +4,8 @@ set -u
 cd "$(dirname "$0")/.."
 : "${VM_IP:?postavi VM_IP}"
 # Argumenti se citiraju (%q) jer ih udaljeni shell ponovo parsira.
-vm() { ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR "admin@$VM_IP" sudo "$(printf '%q ' "$@")"; }
+# VM se kreira od nule s novim host ključem, pa se ključ ne pamti u known_hosts (isto kao SSH u Makefileu).
+vm() { ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "admin@$VM_IP" sudo "$(printf '%q ' "$@")"; }
 fail=0
 if [ -t 1 ]; then G=$'\e[32m'; R=$'\e[31m'; N=$'\e[0m'; fi
 ok()  { printf "  [%s OK %s] %s\n" "${G:-}" "${N:-}" "$1"; }

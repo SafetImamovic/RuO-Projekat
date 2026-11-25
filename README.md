@@ -175,7 +175,7 @@ Prvo podizanje je najsporije zbog skidanja slika i kompajliranja Rusta. Svaki ko
 terraform -chdir=terraform/vm output -raw ip   # adresa VM-a
 make tunnel                                    # http://localhost:8080 (radi i iz Windows preglednika)
 make ps                                        # kontejneri na VM-i
-ssh admin@$(terraform -chdir=terraform/vm output -raw ip)   # prijava samo ključem
+make ssh                                       # prijava na VM, samo ključem
 ```
 
 ### 4. Uklanjanje
