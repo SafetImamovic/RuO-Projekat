@@ -202,6 +202,14 @@ virsh -c qemu:///system vol-list default    # nema proj.qcow2, proj-init.iso ni 
 | `.logs/`, `backups/` | logovi i backupi baze | `rm -rf .logs backups` |
 | alati iz `setup.sh`, SSH ključ | dijele se s drugim projektima | ručno, ako je potrebno |
 
+Sve osim alata i backupa uklanja jedna naredba, nakon koje je repozitorij kao svjež klon:
+
+```bash
+make destroy clean
+```
+
+`make clean` sam po sebi odbija raditi dok Terraform još vodi VM. Brisanje state-a bi ostavilo VM bez upravljanja, a brisanje `.secrets/` bazu sa lozinkom koju više niko nema.
+
 ### 5. Tok odbrane
 
 ```bash
@@ -232,6 +240,7 @@ make drift            # izmjena DNS zapisa mimo koda, plan je vidi, apply je vra
 | `make drift`                               | demonstracija drifta DNS zapisa (`tests/drift.sh`)                                   |
 | `make all`                                 | `infra config dns deploy test`                                                       |
 | `make destroy`                             | uklanjanje svega što je projekat kreirao                                             |
+| `make clean`                               | repozitorij kao svjež klon: briše sve ignorisano (osim `.notes/`, `backups/`); odbija dok VM postoji |
 | `make ps`, `make endpoints`, `make tunnel` | pomoćni: kontejneri, nginx rute, SSH tunel na `http://localhost:8080`                |
 
 Bez Makefilea su to iste naredbe, ovim redom:

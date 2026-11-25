@@ -10,7 +10,7 @@ ifneq ($(shell test -t 1 && echo y),)
 endif
 STEP = @printf '\n$(B)==> %s$(N)\n' "$(1)"
 
-.PHONY: help check infra config dns deploy ps endpoints tunnel test drift backup all destroy
+.PHONY: help check infra config dns deploy ps endpoints tunnel test drift backup all destroy clean
 
 TF_VM  := terraform -chdir=terraform/vm
 TF_DNS := terraform -chdir=terraform/dns
@@ -74,3 +74,14 @@ all: infra config dns deploy test ## cijelo okruženje od nule
 destroy: ## uklanja VM i lokalno stanje DNS-a
 	@scripts/step.sh "uklanjanje VM-a" $(TF_VM) destroy -auto-approve -input=false
 	rm -f terraform/dns/terraform.tfstate*
+
+# Briše sve što .gitignore ignoriše (git clean -X), osim .notes/ i backups/ (lični podaci).
+# Odbija ako Terraform još vodi VM: brisanje state-a bi ostavilo VM bez upravljanja,
+# a brisanje .secrets/ bazu sa lozinkom koju više niko nema. Zato: make destroy clean.
+clean: ## repo kao svjež klon (prvo make destroy)
+	$(call STEP,čišćenje repozitorija)
+	@if [ -f terraform/vm/terraform.tfstate ]; then \
+	  res=$$($(TF_VM) state list) || exit 1; \
+	  if [ -n "$$res" ]; then printf "  [$(R)FAIL$(N)] VM još postoji, prvo: make destroy\n"; exit 1; fi; \
+	fi
+	git clean -fdX -e '!.notes/' -e '!backups/'
